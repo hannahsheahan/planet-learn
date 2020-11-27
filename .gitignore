@@ -122,5 +122,7 @@ figures/
 miscellaneous/
 training_records/
 videos/
+presentations/
+misc/
 .bash_profile
 *.zip
