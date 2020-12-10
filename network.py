@@ -14,12 +14,15 @@ import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
 from sklearn.utils import shuffle
+from sklearn.linear_model import LinearRegression
 from torch.utils.data import Dataset, DataLoader
 from torch.utils.tensorboard import SummaryWriter
 import json
 import random
 from datetime import datetime
 from IPython import embed
+import svd_plots
+from scipy.stats import zscore
 
 
 class CreateDataset(Dataset):
@@ -60,6 +63,9 @@ def train(args, model, device, train_loader, optimizer, criterion, epoch, printO
     model.train()
     train_loss = 0
     correct = 0
+
+    outputs_all = []
+
     for batch_idx, data in enumerate(train_loader):
         optimizer.zero_grad()   # zero the parameter gradients
         input_features, labels = batch_to_torch(data['input_features']), data['label'].type(torch.FloatTensor)
@@ -76,9 +82,13 @@ def train(args, model, device, train_loader, optimizer, criterion, epoch, printO
         if (torch.abs(output-labels) < args.correct_threshold).all():
             correct += 1
 
+        output_np = output.detach().numpy()
+        outputs_all.append(output_np)
+
     train_loss /= len(train_loader.dataset)
     accuracy = (correct / len(train_loader.dataset)) * 100
-    return train_loss, accuracy
+
+    return train_loss, accuracy, outputs_all
 
 
 def test(args, model, device, test_loader, criterion, printOutput=True):
@@ -135,7 +145,7 @@ def init_weights(m):
       - Keep gain small to ensure small and low variance weights.
       """
     if type(m) == nn.Linear:
-        gain = 0.00001
+        gain = 1e-5
         torch.nn.init.xavier_uniform(m.weight, gain)
 
 
@@ -181,7 +191,7 @@ def get_model_name(args):
     return model_name, analysis_name
 
 
-def train_network(args, device, trainset, testset):
+def train_network(args, device, trainset, testset, plot_svds=False):
     """
     This function performs the train/test loop for training the Rogers/McClelland '08 analogy model
     """
@@ -215,11 +225,18 @@ def train_network(args, device, trainset, testset):
 
     train_loss_record, test_loss_record, train_accuracy_record, test_accuracy_record = [[] for i in range(4)]
 
+    train_outputs_record = []
+
     print("Training network...")
+
+    hidden_activity_all = []
+    hidden_distance_all = []
+    hidden_activity, hidden_distance = svd_plots.get_hidden_activity_and_distance(args, model, testset, 0)
+    hidden_activity_all.append(hidden_activity); hidden_distance_all.append(hidden_distance)
     for epoch in range(1, n_epochs + 1):  # loop through the whole dataset this many times
 
         # train network
-        train_loss, train_accuracy = train(args, model, device, trainloader, optimizer, criterion, epoch, printOutput)
+        train_loss, train_accuracy, train_outputs = train(args, model, device, trainloader, optimizer, criterion, epoch, printOutput)
 
         # assess network
         test_loss, test_accuracy = test(args, model, device, testloader, criterion, printOutput)
@@ -235,7 +252,26 @@ def train_network(args, device, trainset, testset):
         train_loss_record.append(train_loss)
         test_loss_record.append(test_loss)
 
-    record = {"train_loss":train_loss_record, "test_loss":test_loss_record, "train_accuracy":train_accuracy_record, "test_accuracy":test_accuracy_record, "args":vars(args) }
+        train_outputs = [train_outputs[i].tolist() for i in range(len(train_outputs))]
+        train_outputs_record.append(train_outputs)
+        # if epoch % 50 == 0:
+        hidden_activity, hidden_distance = svd_plots.get_hidden_activity_and_distance(args, model, testset, epoch)
+        hidden_activity_all.append(hidden_activity); hidden_distance_all.append(hidden_distance)
+        # z_scored_hidden_distance = zscore(hidden_distance)
+
+
+    if plot_svds:
+        svd_plots.plot_sing_val_trajectory(args, train_outputs_record)
+
+    # svd_plots.plot_RDMs(args, hidden_activity_all, hidden_distance_all)
+    # svd_plots.plot_RDM_regression(args, hidden_distance_all)
+
+    try:
+        hidden_distance_all = [[hidden_distance_all[i][0].tolist(), hidden_distance_all[i][1].tolist(), hidden_distance_all[i][2].tolist(), hidden_distance_all[i][3].tolist()] for i in range(len(hidden_distance_all))]
+    except:
+        embed()
+
+    record = {"train_loss":train_loss_record, "test_loss":test_loss_record, "train_accuracy":train_accuracy_record, "test_accuracy":test_accuracy_record, "train_outputs":train_outputs_record, 'hidden_distances': hidden_distance_all, "args":vars(args) }
     randnum = str(random.randint(0,10000))
     args.id = randnum
     model_name, _ = get_model_name(args)

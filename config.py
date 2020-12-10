@@ -37,14 +37,14 @@ def parse_config():
     parser.add_argument('--n_items', default=4, type=int, help='number of output items (default: 4)')     # True: task is like Fabrice's with filler trials; False: solely compare trials
 
     # network architecture
-    parser.add_argument('--D_h_features', type=int, default=16, help='hidden size for hidden item representation (default: 100)')
+    parser.add_argument('--D_h_features', type=int, default=16, help='hidden size for hidden item representation (default: 16)')
     # parser.add_argument('--D_h_context', type=int, default=1500, help='hidden size for hidden context representation (default: 100)')
     # parser.add_argument('--D_h_combined', type=int, default=2000, help='hidden size for hidden combined representation (default: 200)')
 
     # network training hyperparameters
     parser.add_argument('--batch-size', type=int, default=1, metavar='N', help='input batch size for training (default: 1)')
     parser.add_argument('--test-batch-size', type=int, default=1, metavar='N', help='input batch size for testing (default: 1)')
-    parser.add_argument('--epochs', type=int, default=20, metavar='N', help='number of epochs to train (default: 30,000 as used in Rogers/McClelland 08)')
+    parser.add_argument('--epochs', type=int, default=600, metavar='N', help='number of epochs to train (default: 20)')
     parser.add_argument('--lr', type=float, default=0.05, metavar='LR', help='learning rate (default: 0.05 as used in Rogers/McClelland 08)')
     parser.add_argument('--momentum', type=float, default=0, metavar='M', help='SGD momentum (default: 0)')
     parser.add_argument('--no-cuda', action='store_true', help='disables CUDA training')

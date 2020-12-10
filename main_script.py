@@ -169,7 +169,7 @@ def main():
 
     # embed()
     # train and test network
-    model, id, json_path = net.train_network(args, device, trainset, testset)
+    model, id, json_path = net.train_network(args, device, trainset, testset)#, plot_svds=True)
     args.id = id
     # analyse trained network hidden activations
     analyse_network(args, trainset, testset, lookup)
